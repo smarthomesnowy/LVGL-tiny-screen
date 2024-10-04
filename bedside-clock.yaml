@@ -1,0 +1,424 @@
+esphome:
+  name: bedside-clock
+  friendly_name: "Bedside Clock"
+  platform: ESP32
+  board: featheresp32
+
+packages:
+  wifi: !include common/wifi.yaml
+  default: !include common/default.yaml
+  diag: !include common/diag.yaml
+script: !include common/script_bedside.yaml
+
+wifi:
+  manual_ip: 
+    static_ip: !secret bedside-clock_ip
+
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO19
+
+time:
+  - platform: homeassistant
+    id: esptime 
+    on_time:
+      - minutes: '*'
+        seconds: 0
+        then:
+          - script.execute: time_update
+    on_time_sync:
+      - script.execute: time_update
+
+interval:
+  - interval: 100sec
+    then:
+      - lvgl.page.next
+
+sensor:
+  - platform: homeassistant
+    id: all_lights_brightness
+    entity_id: light.all_lights
+    attribute: brightness
+
+  - platform: homeassistant
+    id: average_temperature
+    entity_id: sensor.average_inside_temperature
+    on_value:
+      - lvgl.label.update:
+          id:
+            -  average_insidetemp_label
+            -  average_insidetemp_weather_label
+          text:
+            format: "%.0f°C"
+            args: [x]
+          text_color: !lambda |-
+              if (id(average_temperature).state > -10 && id(average_temperature).state < 0) {
+              return lv_color_hex(0x21d5e4);
+              } else if (id(average_temperature).state > 1 && id(average_temperature).state < 15) {
+              return lv_color_hex(0x037b9b);
+              } else if (id(average_temperature).state > 16 && id(average_temperature).state < 23) {
+              return lv_color_hex(0x5cf706);
+              } else if (id(average_temperature).state > 24 && id(average_temperature).state < 35) {
+              return lv_color_hex(0xd42323);
+              }
+              return lv_color_hex(0x00FF00);
+
+
+  - platform: homeassistant
+    id: outside_temp
+    entity_id: sensor.buienradar_feel_temperature
+    on_value:
+      - lvgl.label.update:
+          id:
+            -  outside_temp_label
+            -  outside_temp_weather_label
+          text:
+            format: "%.0f°C"
+            args: [x]
+          text_color: !lambda |-
+              if (id(outside_temp).state > -10 && id(outside_temp).state < 0) {
+              return lv_color_hex(0x00FF00);
+              } else if (id(outside_temp).state > 1 && id(outside_temp).state < 15) {
+              return lv_color_hex(0x037b9b);
+              } else if (id(outside_temp).state > 16 && id(outside_temp).state < 23) {
+              return lv_color_hex(0x5cf706);
+              } else if (id(outside_temp).state > 24 && id(outside_temp).state < 35) {
+              return lv_color_hex(0xd42323);
+              }
+              return lv_color_hex(0x00FF00);
+
+  - platform: homeassistant
+    id: bigbutton_temperature
+    entity_id: sensor.bigbutton_temperature_2 
+    on_value:
+      - lvgl.label.update:
+          id: bedroom_temp_label
+          text:
+            format: "%.0f°C"
+            args: [x]
+          text_color: !lambda |-
+              if (id(bigbutton_temperature).state > -10 && id(bigbutton_temperature).state < 0) {
+              return lv_color_hex(0x00FF00);
+              } else if (id(bigbutton_temperature).state > 1 && id(bigbutton_temperature).state < 15) {
+              return lv_color_hex(0x037b9b);
+              } else if (id(bigbutton_temperature).state > 16 && id(bigbutton_temperature).state < 23) {
+              return lv_color_hex(0x5cf706);
+              } else if (id(bigbutton_temperature).state > 24 && id(bigbutton_temperature).state < 35) {
+              return lv_color_hex(0xd42323);
+              }
+              return lv_color_hex(0x00FF00);
+              
+text_sensor:    
+######################################################
+#               Weather text sensors                 #
+#                                                    #
+######################################################
+  - platform: homeassistant
+    id: buienradar_condition
+    entity_id: sensor.buienradar_detailed_condition
+    on_value:
+      - lvgl.label.update:
+          id: condition_label
+          text: !lambda |-
+              std::string state = id(buienradar_condition).state.c_str(); {
+                  if (state == "clear_night") return "Clear Night";
+                  else if (state == "cloudy") return "Cloudy";
+                  else if (state == "clear") return "Clear";
+                  else if (state == "fog") return "Foggy";
+                  else if (state == "hail") return "Hail";
+                  else if (state == "lightning") return "Stormy";
+                  else if (state == "lightning-rainy") return "Stormy Rain";
+                  else if (state == "partlycloudy") return "Bit Cloudy";
+                  else if (state == "partlycloudy-fog") return "Bit Foggy";
+                  else if (state == "partlycloudy-light-rain") return "Bit Rainy";
+                  else if (state == "partlycloudy-rain") return "Bit Rainy";
+                  else if (state == "partlycloudy-light-snow") return "Bit Snowy";
+                  else if (state == "partlycloudy-snow") return "Bit Snowy";
+                  else if (state == "partlycloudy-lightning") return "Bit Stormy";
+                  else if (state == "pouring") return "Pouring";
+                  else if (state == "rainy") return "Rainy";
+                  else if (state == "light-rain") return "Light Rain";
+                  else if (state == "snowy") return "Snowy";
+                  else if (state == "light-snow") return "Bit Snowy";
+                  else if (state == "snowy-rainy") return "Slushy";
+                  else if (state == "sunny") return "Sunny";
+                  else if (state == "windy") return "Windy";
+                  else if (state == "windy_variant") return "Gales";
+                  else if (state == "exceptional") return "Nightmareish";
+                  return state;
+              }
+
+  - platform: homeassistant
+    id: buienradar_condition_1d
+    entity_id: sensor.buienradar_condition_1d
+    on_value:
+      - lvgl.label.update:
+          id: condition_1d_label
+          text: !lambda |-
+              std::string state = id(buienradar_condition_1d).state.c_str(); {
+                  if (state == "clear_night") return "Clear Night";
+                  else if (state == "cloudy") return "Cloudy";
+                  else if (state == "clear") return "Clear";
+                  else if (state == "fog") return "Foggy";
+                  else if (state == "hail") return "Hail";
+                  else if (state == "lightning") return "Stormy";
+                  else if (state == "lightning-rainy") return "Stormy Rain";
+                  else if (state == "partlycloudy") return "Bit Cloudy";
+                  else if (state == "partlycloudy-fog") return "Bit Foggy";
+                  else if (state == "partlycloudy-light-rain") return "Bit Rainy";
+                  else if (state == "partlycloudy-rain") return "Bit Rainy";
+                  else if (state == "partlycloudy-light-snow") return "Bit Snowy";
+                  else if (state == "partlycloudy-snow") return "Bit Snowy";
+                  else if (state == "partlycloudy-lightning") return "Bit Stormy";
+                  else if (state == "pouring") return "Pouring";
+                  else if (state == "rainy") return "Rainy";
+                  else if (state == "light-rain") return "Light Rain";
+                  else if (state == "snowy") return "Snowy";
+                  else if (state == "light-snow") return "Bit Snowy";
+                  else if (state == "snowy-rainy") return "Slushy";
+                  else if (state == "sunny") return "Sunny";
+                  else if (state == "windy") return "Windy";
+                  else if (state == "windy_variant") return "Gales";
+                  else if (state == "exceptional") return "Nightmareish";
+                  return state;
+              }
+
+  - platform: template
+    name: "Current time"
+    icon: mdi:timeline-clock
+    lambda: |-
+      char str[17];
+      time_t currTime = id(esptime).now().timestamp;
+      strftime(str, sizeof(str), "%H:%M %d-%m-%Y", localtime(&currTime));
+      return  { str };
+    update_interval: 60s    
+
+color:
+  - id: my_red
+    red: 86%
+    green: 15%
+    blue: 27%
+  - id: my_yellow
+    red: 100%
+    green: 100%
+    blue: 0%
+  - id: my_green
+    red: 0%
+    green: 100%
+    blue: 80%
+  - id: my_blue
+    red: 5%
+    green: 71%
+    blue: 91%
+  - id: my_gray
+    red: 50%
+    green: 50%
+    blue: 50%
+  - id: my_pink
+    red: 100%
+    green: 0%
+    blue: 50%
+  - id: my_white
+    red: 100%
+    green: 100%
+    blue: 100%
+  - id: my_black
+    red: 0%
+    green: 0%
+    blue: 0%
+
+font:
+  - file: "fonts/Roboto-Medium.ttf"
+    id: robo_30
+    size: 30
+    bpp: 4
+
+  - file: "fonts/PennStation.ttf"
+    id: pennstation_65
+    size: 65
+    bpp: 8
+    glyphs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, c, C, ':', '.', '°', '-']    
+
+light:
+
+  - platform: monochromatic
+    output: backlight
+    name: "${friendly_name} Backlight"
+    id: back_light
+    icon: mdi:lightbulb
+    restore_mode: ALWAYS_ON
+    on_turn_on:
+      then:
+        - light.control:
+            id: back_light
+            brightness: 60%
+
+output:
+  - platform: ledc
+    pin: 04
+    id: backlight
+
+binary_sensor:
+
+  - platform: gpio
+    pin:
+      number: GPIO35
+      inverted: True
+    name: "Light Switch"
+    icon: mdi:nintendo-switch
+    device_class: light
+    filters:
+      - delayed_on: 15ms
+    on_press:
+      then:
+        - homeassistant.service:
+            service: light.turn_off
+            data:
+              entity_id: light.all_lights
+        - homeassistant.service:
+            service: scene.turn_on
+            data:
+              entity_id: scene.fireplace_off
+    on_double_click:
+      then:
+        - homeassistant.service:
+            service: light.turn_on
+            data:
+              entity_id: light.all_lights
+        - homeassistant.service:
+            service: scene.turn_on
+            data:
+              entity_id: scene.fireplace_on
+
+  - platform: gpio
+    pin:
+      number: GPIO0
+      inverted: True
+    name: "Page Switch"
+    icon: mdi:nintendo-switch
+    device_class: light
+    filters:
+      - delayed_on: 15ms
+    on_press:
+
+      then:
+        - lvgl.page.next
+        
+    on_double_click:
+      then:
+        lvgl.page.show: main_page
+
+display:
+  - platform: ili9xxx
+    model: st7789v
+    #TTGO TDisplay 135x240
+    dimensions:
+      height: 135
+      width: 240
+      offset_height: 52
+      offset_width: 40
+    # Required or the colors are all inverted, and Black screen is White
+    invert_colors: true
+    # backlight_pin: GPIO4
+    cs_pin: GPIO5
+    dc_pin: GPIO16
+    reset_pin: GPIO23
+    transform:
+      swap_xy: true
+      mirror_y: true
+    id: my_display
+    auto_clear_enabled: false
+
+
+
+lvgl:
+  pages:
+    - id: main_page
+      bg_color: my_black
+      widgets:
+
+        - label:
+            id: bigtime_label
+            align: CENTER
+            bg_color: my_black
+            text_align: CENTER
+            text_color: my_blue
+            text_font: pennstation_65
+            text: "Time"
+
+        - label:
+            id: day_label
+            align: TOP_MID
+            y: -5
+            text_align: LEFT
+            text_color: my_blue
+            text_font: robo_30
+
+        - label:
+            id: outside_temp_label
+            align: BOTTOM_LEFT
+            text_align: CENTER
+            text_color: my_blue
+            text: "${temperature}"
+            text_font: robo_30
+
+        - label:
+            id: average_insidetemp_label
+            align: BOTTOM_RIGHT
+            text_align: CENTER
+            text_color: my_blue
+            text_font: robo_30
+
+        - label:
+            id: bedroom_temp_label
+            align: BOTTOM_MID
+            text_align: CENTER
+            text_color: my_blue
+            text_font: robo_30
+
+######################################################
+#                   weather_page                     #
+#                                                    #
+######################################################
+    - id: weather_page
+      bg_color: my_black
+      widgets:
+
+        - label:
+            id: bigtime_weather_label
+            align: CENTER
+            bg_color: my_black
+            text_align: CENTER
+            text_color: my_blue
+            text_font: pennstation_65
+            text: "Time"
+
+        - label:
+            id: condition_label
+            align: TOP_MID
+            y: -5
+            text_align: LEFT
+            text_color: my_blue
+            text_font: robo_30
+
+        - label:
+            id: outside_temp_weather_label
+            align: BOTTOM_LEFT
+            text_align: CENTER
+            text_color: my_blue
+            text_font: robo_30
+
+        - label:
+            id: average_insidetemp_weather_label
+            align: BOTTOM_RIGHT
+            text_align: CENTER
+            text_color: my_blue
+            text_font: robo_30
+
+        - label:
+            id: condition_1d_label
+            long_mode: scroll_circular
+            align: BOTTOM_MID
+            text_align: CENTER
+            text_color: my_blue
+            text_font: robo_30
